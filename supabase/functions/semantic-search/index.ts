@@ -64,7 +64,7 @@ serve(async (req) => {
 
     // Generate embedding for the search query
     const embeddingResponse = await fetch(
-      'https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2',
+      'https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2',
       {
         method: 'POST',
         headers: {
