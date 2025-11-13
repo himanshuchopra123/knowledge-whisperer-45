@@ -76,11 +76,20 @@ serve(async (req) => {
     );
 
     if (!embeddingResponse.ok) {
-      throw new Error('Failed to generate query embedding');
+      const errorText = await embeddingResponse.text();
+      console.error('HuggingFace API error:', embeddingResponse.status, errorText);
+      throw new Error(`Failed to generate query embedding: ${embeddingResponse.status} - ${errorText}`);
     }
 
     const queryEmbedding = await embeddingResponse.json();
-    console.log('Query embedding generated');
+    
+    // Check if the response is valid
+    if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+      console.error('Invalid embedding response:', queryEmbedding);
+      throw new Error('Invalid embedding response from HuggingFace');
+    }
+    
+    console.log('Query embedding generated successfully');
 
     // Get user ID from authorization header
     const authHeader = req.headers.get('authorization');
