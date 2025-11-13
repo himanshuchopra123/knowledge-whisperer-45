@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { getDocument } from "https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -125,9 +126,48 @@ async function extractText(file: Blob, fileType: string): Promise<string> {
     return sanitizeText(text);
   }
 
-  // For PDF and other formats, use basic text extraction
+  if (fileType === "application/pdf") {
+    return await extractPdfText(file);
+  }
+
+  // For other formats, try basic text extraction
   const text = await file.text();
   return sanitizeText(text);
+}
+
+// Extract text from PDF files
+async function extractPdfText(file: Blob): Promise<string> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Load the PDF document
+    const pdf = await getDocument({
+      data: uint8Array,
+      useSystemFonts: true,
+    }).promise;
+    
+    let fullText = "";
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Combine text items from the page
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      
+      fullText += pageText + "\n\n";
+    }
+    
+    return sanitizeText(fullText);
+  } catch (error) {
+    console.error("Error extracting PDF text:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to extract text from PDF: ${errorMessage}`);
+  }
 }
 
 // Remove null bytes and other problematic characters that PostgreSQL can't handle
