@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Search as SearchIcon, LogOut, Upload } from 'lucide-react';
+import { Search as SearchIcon, LogOut } from 'lucide-react';
 import { SearchBar } from '@/components/search/SearchBar';
 import { FilterPills, SourceFilter, TimeFilter, DocTypeFilter } from '@/components/search/FilterPills';
 import { ExampleQueries } from '@/components/search/ExampleQueries';
 import { SearchHistory } from '@/components/search/SearchHistory';
+import { UploadDialog } from '@/components/search/UploadDialog';
 import { Link } from 'react-router-dom';
 
 const Search = () => {
@@ -59,10 +60,7 @@ const Search = () => {
             <Link to="/settings">
               <Button variant="ghost" size="sm">Settings</Button>
             </Link>
-            <Button variant="outline" size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
+            <UploadDialog />
             <div className="h-4 w-px bg-border" />
             <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={signOut}>
