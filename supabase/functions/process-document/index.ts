@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { getDocument } from "https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs";
+import mammoth from "https://esm.sh/mammoth@1.6.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -130,6 +131,10 @@ async function extractText(file: Blob, fileType: string): Promise<string> {
     return await extractPdfText(file);
   }
 
+  if (fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    return await extractDocxText(file);
+  }
+
   // For other formats, try basic text extraction
   const text = await file.text();
   return sanitizeText(text);
@@ -173,6 +178,19 @@ async function extractPdfText(file: Blob): Promise<string> {
     console.error("Error extracting PDF text:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to extract text from PDF: ${errorMessage}`);
+  }
+}
+
+// Extract text from Word documents
+async function extractDocxText(file: Blob): Promise<string> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return sanitizeText(result.value);
+  } catch (error) {
+    console.error("Error extracting DOCX text:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to extract text from DOCX: ${errorMessage}`);
   }
 }
 
