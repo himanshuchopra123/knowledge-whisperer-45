@@ -54,11 +54,11 @@ serve(async (req) => {
       
       console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(chunks.length / batchSize)}`);
 
-      // Generate embeddings for batch using direct API call
+      // Generate embeddings for batch using Hugging Face router endpoint
       const embeddings = await Promise.all(
         batch.map(async (chunk) => {
           const response = await fetch(
-            `https://api-inference.huggingface.co/models/BAAI/bge-m3`,
+            `https://router.huggingface.co/hf-inference/models/BAAI/bge-m3/pipeline/feature-extraction`,
             {
               method: "POST",
               headers: {
@@ -66,7 +66,7 @@ serve(async (req) => {
                 "Authorization": `Bearer ${Deno.env.get("HUGGING_FACE_ACCESS_TOKEN")}`,
               },
               body: JSON.stringify({
-                inputs: chunk,
+                inputs: [chunk],
               }),
             }
           );
@@ -78,8 +78,8 @@ serve(async (req) => {
           }
 
           const result = await response.json();
-          // Result is the embedding array directly
-          return result;
+          // Result is an array of embeddings, get the first one
+          return result[0];
         })
       );
 
