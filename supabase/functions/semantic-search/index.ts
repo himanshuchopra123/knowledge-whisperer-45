@@ -141,11 +141,17 @@ serve(async (req) => {
 
     // Fetch document metadata for all chunks
     const documentIds = [...new Set(chunks.map((c: any) => c.document_id))];
-    const { data: documents } = await supabase
+    console.log('Document IDs from chunks:', documentIds);
+    console.log('Searching for user_id:', userId);
+    
+    const { data: documents, error: docsError } = await supabase
       .from('documents')
       .select('*')
       .in('id', documentIds)
       .eq('user_id', userId);
+    
+    console.log('Documents found:', documents?.length || 0);
+    if (docsError) console.error('Documents fetch error:', docsError);
 
     const documentsMap = new Map(documents?.map(doc => [doc.id, doc]) || []);
 
