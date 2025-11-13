@@ -54,11 +54,11 @@ serve(async (req) => {
       
       console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(chunks.length / batchSize)}`);
 
-      // Generate embeddings for batch using Hugging Face router endpoint
+      // Generate embeddings for batch using Xenova/all-MiniLM-L6-v2
       const embeddings = await Promise.all(
         batch.map(async (chunk) => {
           const response = await fetch(
-            `https://router.huggingface.co/hf-inference/models/BAAI/bge-m3/pipeline/feature-extraction`,
+            `https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction`,
             {
               method: "POST",
               headers: {
@@ -78,7 +78,6 @@ serve(async (req) => {
           }
 
           const result = await response.json();
-          // Result is an array of embeddings, get the first one
           return result[0];
         })
       );
