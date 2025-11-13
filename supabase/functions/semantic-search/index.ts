@@ -114,6 +114,7 @@ serve(async (req) => {
     }
 
     // Build query with filters
+    console.log('Calling match_document_chunks with threshold:', similarityThreshold);
     let chunksQuery = supabase
       .rpc('match_document_chunks', {
         query_embedding: queryEmbedding,
@@ -123,6 +124,11 @@ serve(async (req) => {
 
     // Fetch matching chunks with document metadata
     const { data: chunks, error: chunksError } = await chunksQuery;
+    
+    console.log('RPC returned chunks:', chunks?.length || 0);
+    if (chunks && chunks.length > 0) {
+      console.log('First chunk similarity:', chunks[0].similarity);
+    }
 
     if (chunksError) {
       console.error('Error fetching chunks:', chunksError);
@@ -130,7 +136,7 @@ serve(async (req) => {
     }
 
     if (!chunks || chunks.length === 0) {
-      console.log('No matching chunks found');
+      console.log('No matching chunks found with threshold:', similarityThreshold);
       return new Response(
         JSON.stringify({ results: [], totalResults: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
