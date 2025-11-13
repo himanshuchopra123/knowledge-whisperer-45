@@ -71,7 +71,7 @@ serve(async (req) => {
           'Authorization': `Bearer ${huggingFaceToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ inputs: query }),
+        body: JSON.stringify({ inputs: [query] }),
       }
     );
 
@@ -81,11 +81,16 @@ serve(async (req) => {
       throw new Error(`Failed to generate query embedding: ${embeddingResponse.status} - ${errorText}`);
     }
 
-    const queryEmbedding = await embeddingResponse.json();
+    const embeddingData = await embeddingResponse.json();
+    
+    // Extract the first embedding from the array response
+    const queryEmbedding = Array.isArray(embeddingData) && embeddingData.length > 0 
+      ? embeddingData[0] 
+      : embeddingData;
     
     // Check if the response is valid
     if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
-      console.error('Invalid embedding response:', queryEmbedding);
+      console.error('Invalid embedding response:', embeddingData);
       throw new Error('Invalid embedding response from HuggingFace');
     }
     
