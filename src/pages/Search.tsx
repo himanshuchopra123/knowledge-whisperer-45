@@ -7,30 +7,93 @@ import { FilterPills, SourceFilter, TimeFilter, DocTypeFilter } from '@/componen
 import { ExampleQueries } from '@/components/search/ExampleQueries';
 import { SearchHistory } from '@/components/search/SearchHistory';
 import { UploadDialog } from '@/components/search/UploadDialog';
+import { SearchResults } from '@/components/search/SearchResults';
 import { Link } from 'react-router-dom';
+import { performSemanticSearch, SearchResult } from '@/lib/searchService';
+import { useToast } from '@/hooks/use-toast';
 
 const Search = () => {
   const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [sources, setSources] = useState<SourceFilter[]>([]);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const [docType, setDocType] = useState<DocTypeFilter>('all');
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
     setIsSearching(true);
     setHasSearched(true);
+    setSearchResults([]);
     
-    // TODO: Implement actual search functionality
-    console.log('Searching for:', searchQuery, { sources, timeFilter, docType });
-    
-    // Simulate search delay
-    setTimeout(() => {
+    try {
+      // Build filters
+      const filters: any = {};
+      
+      if (sources.length > 0) {
+        filters.sources = sources;
+      }
+      
+      if (timeFilter !== 'all') {
+        const now = new Date();
+        const startDate = new Date();
+        
+        switch (timeFilter) {
+          case 'today':
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+        }
+        
+        filters.timeFilter = {
+          startDate: startDate.toISOString(),
+          endDate: now.toISOString(),
+        };
+      }
+      
+      if (docType !== 'all') {
+        // Map doc type filters to file types (these are placeholder mappings)
+        const typeMap: Record<DocTypeFilter, string[]> = {
+          prd: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+          roadmap: ['application/pdf', 'text/plain'],
+          discussion: ['text/plain', 'text/markdown'],
+          all: [],
+        };
+        
+        filters.docTypes = typeMap[docType];
+      }
+      
+      console.log('Performing search:', searchQuery, filters);
+      
+      const response = await performSemanticSearch(searchQuery, filters, 20, 0.5);
+      
+      setSearchResults(response.results);
+      
+      if (response.results.length === 0) {
+        toast({
+          title: 'No results found',
+          description: 'Try adjusting your search terms or filters',
+        });
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: 'Search failed',
+        description: error instanceof Error ? error.message : 'An error occurred while searching',
+        variant: 'destructive',
+      });
+    } finally {
       setIsSearching(false);
-    }, 1500);
+    }
   };
 
   const handleExampleQueryClick = (query: string) => {
@@ -102,13 +165,9 @@ const Search = () => {
             </div>
           )}
 
-          {/* Search Results Placeholder */}
+          {/* Search Results */}
           {hasSearched && !isSearching && (
-            <div className="w-full max-w-3xl mx-auto">
-              <div className="text-center py-12 text-muted-foreground">
-                Search results will appear here
-              </div>
-            </div>
+            <SearchResults results={searchResults} query={searchQuery} />
           )}
         </div>
       </main>
