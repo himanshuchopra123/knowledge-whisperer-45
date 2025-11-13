@@ -113,15 +113,14 @@ serve(async (req) => {
       );
     }
 
-    // Build query with filters - use a very low threshold to test
-    console.log('Calling match_document_chunks with threshold:', 0.01);
-    console.log('Query embedding dimensions:', queryEmbedding.length);
+    // Build query with filters
+    console.log('Calling match_document_chunks with threshold:', similarityThreshold);
     
     let chunksQuery = supabase
       .rpc('match_document_chunks', {
         query_embedding: queryEmbedding,
-        match_threshold: 0.01, // Very low threshold for debugging
-        match_count: maxResults * 2, // Retrieve more for re-ranking
+        match_threshold: similarityThreshold,
+        match_count: maxResults * 2,
       });
 
     // Fetch matching chunks with document metadata
