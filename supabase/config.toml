@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.semantic-search]
 verify_jwt = true
+
+[functions.generate-answer]
+verify_jwt = true

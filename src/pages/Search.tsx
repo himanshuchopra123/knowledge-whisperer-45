@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Search as SearchIcon, LogOut } from 'lucide-react';
+import { Search as SearchIcon, LogOut, Sparkles } from 'lucide-react';
 import { SearchBar } from '@/components/search/SearchBar';
 import { FilterPills, SourceFilter, TimeFilter, DocTypeFilter } from '@/components/search/FilterPills';
 import { ExampleQueries } from '@/components/search/ExampleQueries';
 import { SearchHistory } from '@/components/search/SearchHistory';
 import { UploadDialog } from '@/components/search/UploadDialog';
 import { SearchResults } from '@/components/search/SearchResults';
+import { AnswerDisplay } from '@/components/search/AnswerDisplay';
+import { SourceCitations } from '@/components/search/SourceCitations';
 import { Link } from 'react-router-dom';
 import { performSemanticSearch, SearchResult } from '@/lib/searchService';
+import { generateAnswer, AnswerResponse } from '@/lib/answerService';
 import { useToast } from '@/hooks/use-toast';
 
 const Search = () => {
@@ -22,6 +25,8 @@ const Search = () => {
   const [docType, setDocType] = useState<DocTypeFilter>('all');
   const [hasSearched, setHasSearched] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [answer, setAnswer] = useState<AnswerResponse | null>(null);
+  const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -29,6 +34,7 @@ const Search = () => {
     setIsSearching(true);
     setHasSearched(true);
     setSearchResults([]);
+    setAnswer(null);
     
     try {
       // Build filters
@@ -96,6 +102,70 @@ const Search = () => {
     }
   };
 
+  const handleGenerateAnswer = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsGeneratingAnswer(true);
+    try {
+      // Build same filters as search
+      const filters: any = {};
+      
+      if (sources.length > 0) {
+        filters.sources = sources;
+      }
+      
+      if (timeFilter !== 'all') {
+        const now = new Date();
+        const startDate = new Date();
+        
+        switch (timeFilter) {
+          case 'today':
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+        }
+        
+        filters.timeFilter = {
+          startDate: startDate.toISOString(),
+          endDate: now.toISOString(),
+        };
+      }
+      
+      if (docType !== 'all') {
+        const typeMap: Record<DocTypeFilter, string[]> = {
+          prd: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+          roadmap: ['application/pdf', 'text/plain'],
+          discussion: ['text/plain', 'text/markdown'],
+          all: [],
+        };
+        
+        filters.docTypes = typeMap[docType];
+      }
+
+      const answerResponse = await generateAnswer(searchQuery, filters, 5);
+      setAnswer(answerResponse);
+      
+      toast({
+        title: 'Answer generated',
+        description: 'AI has analyzed your knowledge base',
+      });
+    } catch (error) {
+      console.error('Answer generation error:', error);
+      toast({
+        title: 'Failed to generate answer',
+        description: error instanceof Error ? error.message : 'An error occurred while generating the answer',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingAnswer(false);
+    }
+  };
+
   const handleExampleQueryClick = (query: string) => {
     setSearchQuery(query);
     // Auto-search after a brief delay for better UX
@@ -146,8 +216,8 @@ const Search = () => {
             />
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex justify-center">
+          {/* Filter Pills and Generate Answer Button */}
+          <div className="flex justify-center items-center gap-4 flex-wrap">
             <FilterPills
               sources={sources}
               onSourcesChange={setSources}
@@ -156,12 +226,32 @@ const Search = () => {
               docType={docType}
               onDocTypeChange={setDocType}
             />
+            
+            {hasSearched && searchResults.length > 0 && (
+              <Button
+                onClick={handleGenerateAnswer}
+                disabled={isGeneratingAnswer}
+                variant="default"
+                className="gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                {isGeneratingAnswer ? "Generating..." : "Generate Answer"}
+              </Button>
+            )}
           </div>
 
           {/* Empty State - Example Queries */}
           {!hasSearched && (
             <div className="pt-8">
               <ExampleQueries onQueryClick={handleExampleQueryClick} />
+            </div>
+          )}
+
+          {/* AI Answer and Sources */}
+          {hasSearched && !isSearching && answer && (
+            <div className="space-y-6">
+              <AnswerDisplay answer={answer} />
+              <SourceCitations sources={answer.sources} />
             </div>
           )}
 
