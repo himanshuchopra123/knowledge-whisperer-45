@@ -121,13 +121,21 @@ serve(async (req) => {
 // Extract text from different file types
 async function extractText(file: Blob, fileType: string): Promise<string> {
   if (fileType === "text/plain" || fileType === "text/markdown") {
-    return await file.text();
+    const text = await file.text();
+    return sanitizeText(text);
   }
 
   // For PDF and other formats, use basic text extraction
-  // In production, you'd use libraries like pdf-parse or similar
   const text = await file.text();
-  return text;
+  return sanitizeText(text);
+}
+
+// Remove null bytes and other problematic characters that PostgreSQL can't handle
+function sanitizeText(text: string): string {
+  return text
+    .replace(/\u0000/g, '') // Remove null bytes
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+    .trim();
 }
 
 // Simple text chunking by character count
