@@ -80,7 +80,7 @@ const Search = () => {
       
       console.log('Performing search:', searchQuery, filters);
       
-      const response = await performSemanticSearch(searchQuery, filters, 20, 0.5);
+      const response = await performSemanticSearch(searchQuery, filters, 20, 0.3);
       
       setSearchResults(response.results);
       
