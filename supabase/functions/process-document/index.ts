@@ -141,11 +141,17 @@ async function extractPdfText(file: Blob): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Load the PDF document
+    console.log("Loading PDF document, size:", uint8Array.length);
+    
+    // Load the PDF document with proper configuration
     const pdf = await getDocument({
       data: uint8Array,
       useSystemFonts: true,
+      disableFontFace: true,
+      standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/standard_fonts/",
     }).promise;
+    
+    console.log("PDF loaded successfully, pages:", pdf.numPages);
     
     let fullText = "";
     
