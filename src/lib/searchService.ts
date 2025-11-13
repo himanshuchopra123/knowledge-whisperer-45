@@ -56,5 +56,19 @@ export const performSemanticSearch = async (
     throw new Error(error.message || 'Failed to perform search');
   }
 
+  // Handle null/undefined data by returning empty results
+  if (!data) {
+    return {
+      results: [],
+      totalResults: 0,
+      config: {
+        similarityWeight: 0.5,
+        recencyWeight: 0.2,
+        positionWeight: 0.15,
+        metadataWeight: 0.15,
+      },
+    };
+  }
+
   return data as SearchResponse;
 };
