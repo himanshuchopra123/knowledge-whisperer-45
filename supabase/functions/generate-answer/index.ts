@@ -21,10 +21,17 @@ serve(async (req) => {
 
     console.log('Generating answer for question:', question);
 
-    // Initialize Supabase client for calling semantic-search
+    // Initialize Supabase client for calling semantic-search with user auth
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const authHeader = req.headers.get('Authorization');
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: {
+          Authorization: authHeader || '',
+        },
+      },
+    });
 
     // Call semantic search to get relevant context
     console.log('Calling semantic-search...');
