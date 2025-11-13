@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { HfInference } from "https://esm.sh/@huggingface/inference@2.8.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,9 +47,6 @@ serve(async (req) => {
     const chunks = chunkText(text, 512); // ~512 tokens per chunk
     console.log("Created chunks:", chunks.length);
 
-    // Generate embeddings using Hugging Face with new endpoint
-    const hf = new HfInference(Deno.env.get("HUGGING_FACE_ACCESS_TOKEN"));
-
     // Process chunks in batches
     const batchSize = 10;
     for (let i = 0; i < chunks.length; i += batchSize) {
@@ -58,15 +54,32 @@ serve(async (req) => {
       
       console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(chunks.length / batchSize)}`);
 
-      // Generate embeddings for batch
+      // Generate embeddings for batch using direct API call
       const embeddings = await Promise.all(
         batch.map(async (chunk) => {
-          const result = await hf.featureExtraction({
-            model: "BAAI/bge-m3",
-            inputs: chunk,
-          });
-          // Convert to array if needed
-          return Array.isArray(result) ? result : Array.from(result as any);
+          const response = await fetch(
+            "https://router.huggingface.co/v1/embeddings",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("HUGGING_FACE_ACCESS_TOKEN")}`,
+              },
+              body: JSON.stringify({
+                model: "BAAI/bge-m3:hf-inference",
+                input: chunk,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            const error = await response.text();
+            console.error("HF API error:", error);
+            throw new Error(`Hugging Face API error: ${error}`);
+          }
+
+          const result = await response.json();
+          return result.data[0].embedding;
         })
       );
 
