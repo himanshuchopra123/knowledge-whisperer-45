@@ -58,7 +58,7 @@ serve(async (req) => {
       const embeddings = await Promise.all(
         batch.map(async (chunk) => {
           const response = await fetch(
-            "https://router.huggingface.co/v1/embeddings",
+            `https://api-inference.huggingface.co/models/BAAI/bge-m3`,
             {
               method: "POST",
               headers: {
@@ -66,8 +66,7 @@ serve(async (req) => {
                 "Authorization": `Bearer ${Deno.env.get("HUGGING_FACE_ACCESS_TOKEN")}`,
               },
               body: JSON.stringify({
-                model: "BAAI/bge-m3:hf-inference",
-                input: chunk,
+                inputs: chunk,
               }),
             }
           );
@@ -79,7 +78,8 @@ serve(async (req) => {
           }
 
           const result = await response.json();
-          return result.data[0].embedding;
+          // Result is the embedding array directly
+          return result;
         })
       );
 
