@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { HfInference } from "https://esm.sh/@huggingface/inference@2.3.2";
+import { HfInference } from "https://esm.sh/@huggingface/inference@2.8.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,7 +48,7 @@ serve(async (req) => {
     const chunks = chunkText(text, 512); // ~512 tokens per chunk
     console.log("Created chunks:", chunks.length);
 
-    // Generate embeddings using Hugging Face
+    // Generate embeddings using Hugging Face with new endpoint
     const hf = new HfInference(Deno.env.get("HUGGING_FACE_ACCESS_TOKEN"));
 
     // Process chunks in batches
