@@ -40,7 +40,7 @@ export const performSemanticSearch = async (
   query: string,
   filters: SearchFilters = {},
   maxResults: number = 20,
-  similarityThreshold: number = 0.7
+  similarityThreshold: number = 0.3
 ): Promise<SearchResponse> => {
   const { data, error } = await supabase.functions.invoke('semantic-search', {
     body: {
