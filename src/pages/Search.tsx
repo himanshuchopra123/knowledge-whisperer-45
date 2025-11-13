@@ -1,59 +1,122 @@
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Search as SearchIcon, LogOut, Upload } from 'lucide-react';
+import { SearchBar } from '@/components/search/SearchBar';
+import { FilterPills, SourceFilter, TimeFilter, DocTypeFilter } from '@/components/search/FilterPills';
+import { ExampleQueries } from '@/components/search/ExampleQueries';
+import { SearchHistory } from '@/components/search/SearchHistory';
+import { Link } from 'react-router-dom';
 
 const Search = () => {
   const { user, signOut } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [sources, setSources] = useState<SourceFilter[]>([]);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [docType, setDocType] = useState<DocTypeFilter>('all');
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setHasSearched(true);
+    
+    // TODO: Implement actual search functionality
+    console.log('Searching for:', searchQuery, { sources, timeFilter, docType });
+    
+    // Simulate search delay
+    setTimeout(() => {
+      setIsSearching(false);
+    }, 1500);
+  };
+
+  const handleExampleQueryClick = (query: string) => {
+    setSearchQuery(query);
+    // Auto-search after a brief delay for better UX
+    setTimeout(() => {
+      handleSearch();
+    }, 300);
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <SearchIcon className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">Knowledge Base</span>
+          <div className="flex items-center gap-6">
+            <Link to="/search" className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                <SearchIcon className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="font-semibold">Knowledge Base</span>
+            </Link>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user?.email}</span>
+            <Link to="/dashboard">
+              <Button variant="ghost" size="sm">Dashboard</Button>
+            </Link>
+            <Link to="/settings">
+              <Button variant="ghost" size="sm">Settings</Button>
+            </Link>
+            <Button variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload
+            </Button>
+            <div className="h-4 w-px bg-border" />
+            <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign out
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-12">
-        <div className="mx-auto max-w-4xl space-y-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight mb-2">
-              Search your knowledge base
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Find answers across all your documents in seconds
-            </p>
-          </div>
-
-          <div className="relative">
-            <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Ask a question or search for anything..."
-              className="h-14 pl-12 text-lg"
+      <main className="container mx-auto px-4 py-8 pb-20">
+        <div className="space-y-8">
+          {/* Search Bar */}
+          <div className="pt-12">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onSearch={handleSearch}
+              isLoading={isSearching}
             />
           </div>
 
-          <div className="text-center">
-            <Button size="lg">
-              <Upload className="mr-2 h-5 w-5" />
-              Upload Documents
-            </Button>
+          {/* Filter Pills */}
+          <div className="flex justify-center">
+            <FilterPills
+              sources={sources}
+              onSourcesChange={setSources}
+              timeFilter={timeFilter}
+              onTimeFilterChange={setTimeFilter}
+              docType={docType}
+              onDocTypeChange={setDocType}
+            />
           </div>
+
+          {/* Empty State - Example Queries */}
+          {!hasSearched && (
+            <div className="pt-8">
+              <ExampleQueries onQueryClick={handleExampleQueryClick} />
+            </div>
+          )}
+
+          {/* Search Results Placeholder */}
+          {hasSearched && !isSearching && (
+            <div className="w-full max-w-3xl mx-auto">
+              <div className="text-center py-12 text-muted-foreground">
+                Search results will appear here
+              </div>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Search History Sidebar */}
+      <SearchHistory onQueryClick={handleExampleQueryClick} />
     </div>
   );
 };
