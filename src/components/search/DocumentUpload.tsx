@@ -73,8 +73,15 @@ export const DocumentUpload = () => {
 
         if (dbError) throw dbError;
 
-        // TODO: Call edge function to process document (chunk & embed)
-        // For now, just mark as complete
+        updateFileStatus(fileId, { progress: 80, status: 'processing' });
+
+        // Call edge function to process document (chunk & embed)
+        const { error: processError } = await supabase.functions.invoke('process-document', {
+          body: { documentId: document.id }
+        });
+
+        if (processError) throw processError;
+
         updateFileStatus(fileId, { progress: 100, status: 'complete' });
 
         toast({
