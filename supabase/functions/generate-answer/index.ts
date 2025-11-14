@@ -39,7 +39,7 @@ serve(async (req) => {
       body: {
         query: question,
         maxResults,
-        similarityThreshold: 0.6,
+        similarityThreshold: 0.15,
         ...filters,
       },
     });
