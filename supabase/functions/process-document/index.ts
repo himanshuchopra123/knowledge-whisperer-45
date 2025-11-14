@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { getDocument } from "https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs";
+import { getDocument } from "https://esm.sh/pdfjs-serverless@0.3.2";
 import mammoth from "https://esm.sh/mammoth@1.6.0";
 
 const corsHeaders = {
@@ -148,13 +148,8 @@ async function extractPdfText(file: Blob): Promise<string> {
     
     console.log("Loading PDF document, size:", uint8Array.length);
     
-    // Load the PDF document with proper configuration
-    const pdf = await getDocument({
-      data: uint8Array,
-      useSystemFonts: true,
-      disableFontFace: true,
-      standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/standard_fonts/",
-    }).promise;
+    // Load the PDF document with pdfjs-serverless (no worker configuration needed)
+    const pdf = await getDocument(uint8Array).promise;
     
     console.log("PDF loaded successfully, pages:", pdf.numPages);
     
