@@ -27,6 +27,7 @@ const Search = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [answer, setAnswer] = useState<AnswerResponse | null>(null);
   const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -83,6 +84,9 @@ const Search = () => {
       const response = await performSemanticSearch(searchQuery, filters, 20, 0.15);
       
       setSearchResults(response.results);
+      
+      // Refresh search history after successful search
+      setHistoryRefreshTrigger(prev => prev + 1);
       
       if (response.results.length === 0) {
         toast({
@@ -263,7 +267,10 @@ const Search = () => {
       </main>
 
       {/* Search History Sidebar */}
-      <SearchHistory onQueryClick={handleExampleQueryClick} />
+      <SearchHistory 
+        onQueryClick={handleExampleQueryClick} 
+        refreshTrigger={historyRefreshTrigger}
+      />
     </div>
   );
 };
