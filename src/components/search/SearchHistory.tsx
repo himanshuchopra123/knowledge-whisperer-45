@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { History, Star, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { History, Star, ChevronLeft, ChevronRight, Clock, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
 
 interface SearchHistoryItem {
   id: string;
   query: string;
   timestamp: Date;
+  sources?: string[] | null;
   saved?: boolean;
 }
 
@@ -18,8 +21,44 @@ interface SearchHistoryProps {
 
 export const SearchHistory = ({ onQueryClick }: SearchHistoryProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [recentSearches] = useState<SearchHistoryItem[]>([]);
+  const [recentSearches, setRecentSearches] = useState<SearchHistoryItem[]>([]);
   const [savedSearches] = useState<SearchHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchSearchHistory = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('search_history')
+          .select('id, query, created_at, sources')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching search history:', error);
+          return;
+        }
+
+        const formattedData: SearchHistoryItem[] = (data || []).map(item => ({
+          id: item.id,
+          query: item.query,
+          timestamp: new Date(item.created_at),
+          sources: item.sources as string[] | null,
+        }));
+
+        setRecentSearches(formattedData);
+      } catch (error) {
+        console.error('Failed to fetch search history:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isExpanded) {
+      fetchSearchHistory();
+    }
+  }, [isExpanded]);
 
   return (
     <div
@@ -77,7 +116,15 @@ export const SearchHistory = ({ onQueryClick }: SearchHistoryProps) => {
                   <Clock className="h-4 w-4" />
                   Recent Searches
                 </div>
-                {recentSearches.length === 0 ? (
+                {isLoading ? (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Loading search history...
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : recentSearches.length === 0 ? (
                   <Card>
                     <CardContent className="p-6 text-center">
                       <p className="text-sm text-muted-foreground">
@@ -95,9 +142,19 @@ export const SearchHistory = ({ onQueryClick }: SearchHistoryProps) => {
                       >
                         <CardContent className="p-3">
                           <p className="text-sm font-medium line-clamp-2 mb-1">{item.query}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(item.timestamp).toLocaleString()}
-                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(item.timestamp).toLocaleString()}
+                            </p>
+                            {item.sources && item.sources.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                <FileText className="h-3 w-3 text-muted-foreground" />
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                  {item.sources.length} source{item.sources.length !== 1 ? 's' : ''}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
