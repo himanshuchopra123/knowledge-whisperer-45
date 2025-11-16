@@ -26,10 +26,10 @@ interface RankingConfig {
 }
 
 const DEFAULT_CONFIG: RankingConfig = {
-  similarityWeight: 0.5,
-  recencyWeight: 0.2,
-  positionWeight: 0.15,
-  metadataWeight: 0.15,
+  similarityWeight: 0.7,
+  recencyWeight: 0.1,
+  positionWeight: 0.1,
+  metadataWeight: 0.1,
 };
 
 serve(async (req) => {
