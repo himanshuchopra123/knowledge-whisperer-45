@@ -17,9 +17,10 @@ interface SearchHistoryItem {
 
 interface SearchHistoryProps {
   onQueryClick: (query: string) => void;
+  refreshTrigger?: number;
 }
 
-export const SearchHistory = ({ onQueryClick }: SearchHistoryProps) => {
+export const SearchHistory = ({ onQueryClick, refreshTrigger }: SearchHistoryProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [recentSearches, setRecentSearches] = useState<SearchHistoryItem[]>([]);
   const [savedSearches] = useState<SearchHistoryItem[]>([]);
@@ -58,7 +59,7 @@ export const SearchHistory = ({ onQueryClick }: SearchHistoryProps) => {
     if (isExpanded) {
       fetchSearchHistory();
     }
-  }, [isExpanded]);
+  }, [isExpanded, refreshTrigger]);
 
   return (
     <div
