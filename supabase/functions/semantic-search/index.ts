@@ -258,11 +258,16 @@ serve(async (req) => {
 
     console.log(`Returning ${finalResults.length} ranked results`);
 
-    // Store search history
+    // Extract unique document filenames from results for search history
+    const resultSources = [...new Set(
+      finalResults.map((r: any) => r.fileName)
+    )];
+
+    // Store search history with actual document sources
     await supabase.from('search_history').insert({
       user_id: userId,
       query,
-      sources: sources.length > 0 ? sources : null,
+      sources: resultSources.length > 0 ? resultSources : null,
     });
 
     return new Response(
