@@ -85,6 +85,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notion_connections: {
+        Row: {
+          access_token: string
+          bot_id: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+          workspace_name: string | null
+        }
+        Insert: {
+          access_token: string
+          bot_id?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+          workspace_name?: string | null
+        }
+        Update: {
+          access_token?: string
+          bot_id?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+          workspace_name?: string | null
+        }
+        Relationships: []
+      }
       search_history: {
         Row: {
           answer: string | null

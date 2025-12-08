@@ -1,11 +1,92 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, LogOut } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, LogOut, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { NotionConnector } from '@/components/settings/NotionConnector';
 
 const Settings = () => {
   const { user, signOut } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+  const [notionConnection, setNotionConnection] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for OAuth callback results
+    const notionConnected = searchParams.get('notion');
+    const notionError = searchParams.get('notion_error');
+
+    if (notionConnected === 'connected') {
+      toast({
+        title: "Notion Connected",
+        description: "Your Notion workspace has been successfully connected.",
+      });
+      // Clear the URL params
+      window.history.replaceState({}, '', '/settings');
+    }
+
+    if (notionError) {
+      toast({
+        title: "Connection Failed",
+        description: decodeURIComponent(notionError),
+        variant: "destructive",
+      });
+      window.history.replaceState({}, '', '/settings');
+    }
+
+    fetchNotionConnection();
+  }, [searchParams, toast]);
+
+  const fetchNotionConnection = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('notion_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching Notion connection:', error);
+      }
+      
+      setNotionConnection(data);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('notion_connections')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setNotionConnection(null);
+      toast({
+        title: "Disconnected",
+        description: "Your Notion workspace has been disconnected.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,9 +128,25 @@ const Settings = () => {
                 Connect your data sources to enable search across platforms
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                No connectors configured yet. Integration with Google Drive, Slack, and Notion coming soon.
+            <CardContent className="space-y-6">
+              {loading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading connections...
+                </div>
+              ) : (
+                <NotionConnector 
+                  connection={notionConnection}
+                  onDisconnect={handleDisconnect}
+                  onConnectionChange={fetchNotionConnection}
+                />
+              )}
+              
+              {/* Placeholder for future connectors */}
+              <div className="border-t pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Google Drive and Slack integrations coming soon.
+                </p>
               </div>
             </CardContent>
           </Card>
