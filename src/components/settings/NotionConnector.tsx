@@ -20,7 +20,18 @@ export const NotionConnector = ({ connection, onDisconnect, onConnectionChange }
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('notion-auth');
+      // Get the current session to ensure we have a valid token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Please log in to connect your Notion account");
+      }
+
+      const { data, error } = await supabase.functions.invoke('notion-auth', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
 
       if (error) throw error;
 
