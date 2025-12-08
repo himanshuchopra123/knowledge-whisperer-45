@@ -22,23 +22,35 @@ serve(async (req) => {
   // Handle initial auth request - generate OAuth URL
   try {
     const authHeader = req.headers.get("authorization");
+    console.log("Auth header present:", !!authHeader);
+    console.log("Auth header value:", authHeader ? authHeader.substring(0, 20) + "..." : "none");
+    
     if (!authHeader) {
+      console.log("No authorization header found");
       return new Response(
         JSON.stringify({ error: "Authorization required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    console.log("Supabase URL:", supabaseUrl);
+    console.log("Anon key present:", !!supabaseAnonKey);
+
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      supabaseUrl ?? "",
+      supabaseAnonKey ?? "",
       { global: { headers: { Authorization: authHeader } } }
     );
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    console.log("User fetch result - user:", user?.id, "error:", userError?.message);
+    
     if (userError || !user) {
+      console.log("User authentication failed:", userError?.message || "No user found");
       return new Response(
-        JSON.stringify({ error: "User not authenticated" }),
+        JSON.stringify({ error: "User not authenticated", details: userError?.message }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
