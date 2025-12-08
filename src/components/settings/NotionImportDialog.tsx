@@ -43,8 +43,16 @@ export const NotionImportDialog = ({ open, onOpenChange, onImportComplete }: Not
   const fetchPages = async () => {
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Please log in first");
+      }
+
       const { data, error } = await supabase.functions.invoke('notion-import', {
         body: { action: 'list' },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error) throw error;
@@ -85,11 +93,19 @@ export const NotionImportDialog = ({ open, onOpenChange, onImportComplete }: Not
 
     setImporting(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Please log in first");
+      }
+
       const { data, error } = await supabase.functions.invoke('notion-import', {
         body: { 
           action: 'import',
           pageIds: Array.from(selectedPages),
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error) throw error;
