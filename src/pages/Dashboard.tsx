@@ -1,11 +1,53 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, LogOut, FileText, Database, Settings as SettingsIcon } from 'lucide-react';
+import { Search, LogOut, FileText, Database } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
+  const [documentCount, setDocumentCount] = useState<number>(0);
+  const [searchCount, setSearchCount] = useState<number>(0);
+  const [connectorCount, setConnectorCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch document count
+        const { count: docCount } = await supabase
+          .from('documents')
+          .select('*', { count: 'exact', head: true });
+        
+        // Fetch search history count
+        const { count: searchHistoryCount } = await supabase
+          .from('search_history')
+          .select('*', { count: 'exact', head: true });
+        
+        // Fetch connector counts
+        const { count: notionCount } = await supabase
+          .from('notion_connections')
+          .select('*', { count: 'exact', head: true });
+        
+        const { count: driveCount } = await supabase
+          .from('google_drive_connections')
+          .select('*', { count: 'exact', head: true });
+
+        setDocumentCount(docCount || 0);
+        setSearchCount(searchHistoryCount || 0);
+        setConnectorCount((notionCount || 0) + (driveCount || 0));
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,7 +89,9 @@ const Dashboard = () => {
               <CardDescription>Total indexed documents</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">0</div>
+              <div className="text-3xl font-bold">
+                {isLoading ? '...' : documentCount}
+              </div>
             </CardContent>
           </Card>
 
@@ -58,7 +102,9 @@ const Dashboard = () => {
               <CardDescription>Total searches performed</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">0</div>
+              <div className="text-3xl font-bold">
+                {isLoading ? '...' : searchCount}
+              </div>
             </CardContent>
           </Card>
 
@@ -69,7 +115,9 @@ const Dashboard = () => {
               <CardDescription>Active integrations</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">0</div>
+              <div className="text-3xl font-bold">
+                {isLoading ? '...' : connectorCount}
+              </div>
             </CardContent>
           </Card>
         </div>
