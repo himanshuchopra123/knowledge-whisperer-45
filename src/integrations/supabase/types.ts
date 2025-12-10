@@ -56,6 +56,8 @@ export type Database = {
           file_size: number
           file_type: string
           id: string
+          source_id: string | null
+          source_type: string | null
           storage_path: string | null
           title: string
           updated_at: string
@@ -67,6 +69,8 @@ export type Database = {
           file_size: number
           file_type: string
           id?: string
+          source_id?: string | null
+          source_type?: string | null
           storage_path?: string | null
           title: string
           updated_at?: string
@@ -78,6 +82,8 @@ export type Database = {
           file_size?: number
           file_type?: string
           id?: string
+          source_id?: string | null
+          source_type?: string | null
           storage_path?: string | null
           title?: string
           updated_at?: string
@@ -88,9 +94,11 @@ export type Database = {
       google_drive_connections: {
         Row: {
           access_token: string
+          auto_sync_enabled: boolean | null
           created_at: string
           email: string | null
           id: string
+          last_synced_at: string | null
           refresh_token: string | null
           token_expiry: string | null
           updated_at: string
@@ -98,9 +106,11 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          auto_sync_enabled?: boolean | null
           created_at?: string
           email?: string | null
           id?: string
+          last_synced_at?: string | null
           refresh_token?: string | null
           token_expiry?: string | null
           updated_at?: string
@@ -108,9 +118,11 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          auto_sync_enabled?: boolean | null
           created_at?: string
           email?: string | null
           id?: string
+          last_synced_at?: string | null
           refresh_token?: string | null
           token_expiry?: string | null
           updated_at?: string

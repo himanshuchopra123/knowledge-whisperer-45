@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.google-drive-import]
 verify_jwt = true
+
+[functions.google-drive-sync]
+verify_jwt = false
