@@ -12,96 +12,99 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization");
+    console.log("Starting Google Drive auto-sync...");
     
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authorization required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-
-    const supabaseClient = createClient(
+    const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !user) {
-      console.log("User auth failed:", userError?.message);
-      return new Response(
-        JSON.stringify({ error: "User not authenticated" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    console.log("User authenticated:", user.id);
-
-    // Get Google Drive connection
-    const { data: connection, error: connError } = await supabaseClient
+    // Get all users with auto-sync enabled
+    const { data: connections, error: connError } = await adminClient
       .from("google_drive_connections")
       .select("*")
-      .eq("user_id", user.id)
-      .single();
+      .eq("auto_sync_enabled", true);
 
-    if (connError || !connection) {
-      return new Response(
-        JSON.stringify({ error: "Google Drive not connected" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (connError) {
+      console.error("Error fetching connections:", connError);
+      throw connError;
     }
 
-    // Check if token needs refresh
-    let accessToken = connection.access_token;
-    if (connection.token_expiry && new Date(connection.token_expiry) < new Date()) {
-      console.log("Token expired, refreshing...");
-      accessToken = await refreshAccessToken(connection.refresh_token, user.id, supabaseClient);
-      if (!accessToken) {
-        return new Response(
-          JSON.stringify({ error: "Failed to refresh token, please reconnect Google Drive" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    console.log(`Found ${connections?.length || 0} connections with auto-sync enabled`);
+
+    const results = [];
+
+    for (const connection of connections || []) {
+      try {
+        console.log(`Syncing for user: ${connection.user_id}`);
+        
+        // Check if token needs refresh
+        let accessToken = connection.access_token;
+        if (connection.token_expiry && new Date(connection.token_expiry) < new Date()) {
+          console.log("Token expired, refreshing...");
+          accessToken = await refreshAccessToken(connection.refresh_token, connection.user_id, adminClient);
+          if (!accessToken) {
+            console.log(`Failed to refresh token for user ${connection.user_id}`);
+            continue;
+          }
+        }
+
+        // Get existing imported file IDs for this user
+        const { data: existingDocs } = await adminClient
+          .from("documents")
+          .select("source_id")
+          .eq("user_id", connection.user_id)
+          .eq("source_type", "google_drive")
+          .not("source_id", "is", null);
+
+        const existingFileIds = new Set((existingDocs || []).map(d => d.source_id));
+        console.log(`User has ${existingFileIds.size} existing Google Drive files`);
+
+        // List files from Google Drive
+        const driveFiles = await listGoogleDriveFiles(accessToken);
+        console.log(`Found ${driveFiles.length} files in Google Drive`);
+
+        // Find new files to import
+        const newFiles = driveFiles.filter(f => !existingFileIds.has(f.id));
+        console.log(`Found ${newFiles.length} new files to import`);
+
+        if (newFiles.length > 0) {
+          // Import new files (limit to 10 per sync to avoid timeouts)
+          const filesToImport = newFiles.slice(0, 10);
+          const importResults = await importGoogleDriveFiles(
+            filesToImport.map(f => f.id),
+            accessToken,
+            connection.user_id,
+            adminClient
+          );
+          
+          results.push({
+            userId: connection.user_id,
+            imported: importResults.filter(r => r.success).length,
+            failed: importResults.filter(r => !r.success).length,
+          });
+        }
+
+        // Update last synced timestamp
+        await adminClient
+          .from("google_drive_connections")
+          .update({ last_synced_at: new Date().toISOString() })
+          .eq("user_id", connection.user_id);
+
+      } catch (userError: any) {
+        console.error(`Error syncing for user ${connection.user_id}:`, userError);
+        results.push({ userId: connection.user_id, error: userError.message });
       }
     }
 
-    const { action, fileIds } = await req.json();
-
-    if (action === "list") {
-      const files = await listGoogleDriveFiles(accessToken);
-      return new Response(
-        JSON.stringify({ files }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (action === "import") {
-      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-        return new Response(
-          JSON.stringify({ error: "No files selected" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const results = await importGoogleDriveFiles(fileIds, accessToken, user.id, supabaseClient);
-      return new Response(
-        JSON.stringify({ results }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    console.log("Sync completed:", results);
+    
     return new Response(
-      JSON.stringify({ error: "Invalid action" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, results }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error("Sync error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -109,7 +112,7 @@ serve(async (req) => {
   }
 });
 
-async function refreshAccessToken(refreshToken: string | null, userId: string, supabaseClient: any): Promise<string | null> {
+async function refreshAccessToken(refreshToken: string | null, userId: string, adminClient: any): Promise<string | null> {
   if (!refreshToken) return null;
 
   try {
@@ -134,12 +137,6 @@ async function refreshAccessToken(refreshToken: string | null, userId: string, s
       ? new Date(Date.now() + data.expires_in * 1000).toISOString()
       : null;
 
-    // Update stored token using service role
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
     await adminClient
       .from("google_drive_connections")
       .update({
@@ -159,7 +156,6 @@ async function listGoogleDriveFiles(accessToken: string): Promise<any[]> {
   const files: any[] = [];
   let pageToken = "";
 
-  // Query for documents (Google Docs, PDFs, Word docs, text files)
   const mimeTypes = [
     "application/vnd.google-apps.document",
     "application/pdf",
@@ -172,7 +168,7 @@ async function listGoogleDriveFiles(accessToken: string): Promise<any[]> {
   do {
     const params = new URLSearchParams({
       q: `(${query}) and trashed=false`,
-      fields: "nextPageToken,files(id,name,mimeType,modifiedTime,iconLink,webViewLink)",
+      fields: "nextPageToken,files(id,name,mimeType,modifiedTime)",
       pageSize: "100",
       orderBy: "modifiedTime desc",
     });
@@ -182,37 +178,22 @@ async function listGoogleDriveFiles(accessToken: string): Promise<any[]> {
     }
 
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("Error listing files:", error);
       throw new Error("Failed to list Google Drive files");
     }
 
     const data = await response.json();
-    
-    for (const file of data.files || []) {
-      files.push({
-        id: file.id,
-        name: file.name,
-        mimeType: file.mimeType,
-        modifiedTime: file.modifiedTime,
-        iconLink: file.iconLink,
-        webViewLink: file.webViewLink,
-      });
-    }
-
+    files.push(...(data.files || []));
     pageToken = data.nextPageToken || "";
-  } while (pageToken && files.length < 500); // Limit to 500 files
+  } while (pageToken && files.length < 500);
 
   return files;
 }
 
-async function importGoogleDriveFiles(fileIds: string[], accessToken: string, userId: string, supabaseClient: any): Promise<any[]> {
+async function importGoogleDriveFiles(fileIds: string[], accessToken: string, userId: string, adminClient: any): Promise<any[]> {
   const results = [];
   const HF_TOKEN = Deno.env.get("HUGGING_FACE_ACCESS_TOKEN");
 
@@ -220,12 +201,9 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
     try {
       console.log(`Importing file: ${fileId}`);
       
-      // Get file metadata
       const metaResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
       if (!metaResponse.ok) {
@@ -235,37 +213,28 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
       const metadata = await metaResponse.json();
       console.log(`File: ${metadata.name}, Type: ${metadata.mimeType}`);
 
-      // Get file content
       let content = "";
       
       if (metadata.mimeType === "application/vnd.google-apps.document") {
-        // Export Google Doc as plain text
         const exportResponse = await fetch(
           `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         
         if (exportResponse.ok) {
           content = await exportResponse.text();
         }
       } else {
-        // Download regular file
         const downloadResponse = await fetch(
           `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
 
         if (downloadResponse.ok) {
           if (metadata.mimeType === "text/plain") {
             content = await downloadResponse.text();
           } else {
-            // For PDFs and DOCX, we'd need specialized parsing
-            // For now, skip these as they need more complex handling
-            content = `[Binary content from ${metadata.name} - PDF/DOCX parsing requires document processing]`;
+            content = `[Binary content from ${metadata.name}]`;
           }
         }
       }
@@ -275,8 +244,8 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
         continue;
       }
 
-      // Create document record with source tracking
-      const { data: doc, error: docError } = await supabaseClient
+      // Create document with source tracking
+      const { data: doc, error: docError } = await adminClient
         .from("documents")
         .insert({
           user_id: userId,
@@ -295,15 +264,12 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
         throw new Error(`Failed to create document: ${docError.message}`);
       }
 
-      // Chunk the content
       const chunks = chunkText(content, 1500);
       console.log(`Created ${chunks.length} chunks for ${metadata.name}`);
 
-      // Generate embeddings and store chunks
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         
-        // Generate embedding using HuggingFace
         const embeddingResponse = await fetch(
           "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction",
           {
@@ -324,8 +290,7 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
         const embeddingData = await embeddingResponse.json();
         const embedding = Array.isArray(embeddingData) && embeddingData.length > 0 ? embeddingData[0] : embeddingData;
 
-        // Store chunk with embedding
-        const { error: chunkError } = await supabaseClient
+        await adminClient
           .from("document_chunks")
           .insert({
             document_id: doc.id,
@@ -333,10 +298,6 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
             chunk_text: chunk,
             embedding: embedding,
           });
-
-        if (chunkError) {
-          console.error("Chunk insert error:", chunkError);
-        }
       }
 
       results.push({ fileId, success: true, documentId: doc.id, title: metadata.name });
