@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.google-drive-sync]
 verify_jwt = false
+
+[functions.parse-query-intent]
+verify_jwt = true
