@@ -48,13 +48,24 @@ const Search = () => {
       // First, parse the query intent using AI
       console.log('Parsing query intent:', searchQuery);
       const intent = await parseQueryIntent(searchQuery);
-      console.log('Parsed intent:', intent);
+      console.log('Parsed intent:', JSON.stringify(intent, null, 2));
+      console.log('Is metadata query:', intent.isMetadataQuery);
+      console.log('Time filter:', intent.timeFilter);
+      console.log('Sort by:', intent.sortBy);
       
-      // Show feedback if owner was detected
+      // Show feedback about parsed intent
       if (intent.owner) {
         toast({
           title: `Searching for ${intent.owner}'s documents`,
           description: 'Looking for documents mentioning this person as author or owner',
+        });
+      }
+      
+      // Show time filter info
+      if (intent.timeFilter) {
+        toast({
+          title: 'Time filter applied',
+          description: `From ${intent.timeFilter.startDate} to ${intent.timeFilter.endDate}`,
         });
       }
       
