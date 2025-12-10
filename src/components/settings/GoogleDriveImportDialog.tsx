@@ -172,12 +172,16 @@ export const GoogleDriveImportDialog = ({ open, onOpenChange, onImportComplete }
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Checkbox
+                id="select-all"
                 checked={files.length > 0 && selectedFiles.size === files.length}
                 onCheckedChange={toggleAll}
                 disabled={loading || files.length === 0}
               />
+              <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                Select All
+              </label>
               <span className="text-sm text-muted-foreground">
-                {selectedFiles.size} of {files.length} selected
+                ({selectedFiles.size} of {files.length} selected)
               </span>
             </div>
             <Button variant="ghost" size="sm" onClick={fetchFiles} disabled={loading}>
