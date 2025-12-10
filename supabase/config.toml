@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.notion-import]
 verify_jwt = true
+
+[functions.google-drive-auth]
+verify_jwt = false
+
+[functions.google-drive-import]
+verify_jwt = true

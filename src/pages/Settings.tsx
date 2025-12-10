@@ -2,21 +2,23 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, LogOut, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Search, LogOut, Loader2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { NotionConnector } from '@/components/settings/NotionConnector';
+import { GoogleDriveConnector } from '@/components/settings/GoogleDriveConnector';
 
 const Settings = () => {
   const { user, signOut } = useAuth();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [notionConnection, setNotionConnection] = useState<any>(null);
+  const [googleDriveConnection, setGoogleDriveConnection] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for OAuth callback results
+    // Check for OAuth callback results - Notion
     const notionConnected = searchParams.get('notion');
     const notionError = searchParams.get('notion_error');
 
@@ -25,7 +27,6 @@ const Settings = () => {
         title: "Notion Connected",
         description: "Your Notion workspace has been successfully connected.",
       });
-      // Clear the URL params
       window.history.replaceState({}, '', '/settings');
     }
 
@@ -38,24 +39,57 @@ const Settings = () => {
       window.history.replaceState({}, '', '/settings');
     }
 
-    fetchNotionConnection();
+    // Check for OAuth callback results - Google Drive
+    const googleConnected = searchParams.get('google');
+    const googleError = searchParams.get('google_error');
+
+    if (googleConnected === 'connected') {
+      toast({
+        title: "Google Drive Connected",
+        description: "Your Google Drive has been successfully connected.",
+      });
+      window.history.replaceState({}, '', '/settings');
+    }
+
+    if (googleError) {
+      toast({
+        title: "Connection Failed",
+        description: decodeURIComponent(googleError),
+        variant: "destructive",
+      });
+      window.history.replaceState({}, '', '/settings');
+    }
+
+    fetchConnections();
   }, [searchParams, toast]);
 
-  const fetchNotionConnection = async () => {
+  const fetchConnections = async () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      // Fetch Notion connection
+      const { data: notionData, error: notionError } = await supabase
         .from('notion_connections')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching Notion connection:', error);
+      if (notionError && notionError.code !== 'PGRST116') {
+        console.error('Error fetching Notion connection:', notionError);
       }
-      
-      setNotionConnection(data);
+      setNotionConnection(notionData);
+
+      // Fetch Google Drive connection
+      const { data: googleData, error: googleError } = await supabase
+        .from('google_drive_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (googleError && googleError.code !== 'PGRST116') {
+        console.error('Error fetching Google Drive connection:', googleError);
+      }
+      setGoogleDriveConnection(googleData);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -63,7 +97,7 @@ const Settings = () => {
     }
   };
 
-  const handleDisconnect = async () => {
+  const handleNotionDisconnect = async () => {
     if (!user) return;
 
     try {
@@ -78,6 +112,31 @@ const Settings = () => {
       toast({
         title: "Disconnected",
         description: "Your Notion workspace has been disconnected.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGoogleDriveDisconnect = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('google_drive_connections')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setGoogleDriveConnection(null);
+      toast({
+        title: "Disconnected",
+        description: "Your Google Drive has been disconnected.",
       });
     } catch (error: any) {
       toast({
@@ -128,26 +187,26 @@ const Settings = () => {
                 Connect your data sources to enable search across platforms
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               {loading ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading connections...
                 </div>
               ) : (
-                <NotionConnector 
-                  connection={notionConnection}
-                  onDisconnect={handleDisconnect}
-                  onConnectionChange={fetchNotionConnection}
-                />
+                <>
+                  <NotionConnector 
+                    connection={notionConnection}
+                    onDisconnect={handleNotionDisconnect}
+                    onConnectionChange={fetchConnections}
+                  />
+                  <GoogleDriveConnector 
+                    connection={googleDriveConnection}
+                    onDisconnect={handleGoogleDriveDisconnect}
+                    onConnectionChange={fetchConnections}
+                  />
+                </>
               )}
-              
-              {/* Placeholder for future connectors */}
-              <div className="border-t pt-4">
-                <p className="text-sm text-muted-foreground">
-                  Google Drive and Slack integrations coming soon.
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>
