@@ -29,10 +29,20 @@ export const queryDocumentsByMetadata = async (
   // Apply time filter
   if (timeFilter) {
     if (timeFilter.startDate) {
-      query = query.gte('created_at', timeFilter.startDate);
+      // Ensure start date includes beginning of day
+      const startDateStr = timeFilter.startDate.includes('T') 
+        ? timeFilter.startDate 
+        : `${timeFilter.startDate}T00:00:00.000Z`;
+      console.log('Applying startDate filter:', startDateStr);
+      query = query.gte('created_at', startDateStr);
     }
     if (timeFilter.endDate) {
-      query = query.lte('created_at', timeFilter.endDate);
+      // Ensure end date includes end of day
+      const endDateStr = timeFilter.endDate.includes('T') 
+        ? timeFilter.endDate 
+        : `${timeFilter.endDate}T23:59:59.999Z`;
+      console.log('Applying endDate filter:', endDateStr);
+      query = query.lte('created_at', endDateStr);
     }
   }
 

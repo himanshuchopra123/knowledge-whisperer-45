@@ -64,17 +64,23 @@ Examples:
 - "oldest files" → {"searchQuery": null, "sortBy": "oldest", "timeFilter": null, "docTypes": null, "limit": 10, "isMetadataQuery": true, "owner": null}
 - "what is our refund policy" → {"searchQuery": "refund policy", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": null}
 - "files uploaded yesterday" → {"searchQuery": null, "sortBy": "newest", "timeFilter": {"startDate": "yesterday_date", "endDate": "yesterday_date"}, "docTypes": null, "limit": null, "isMetadataQuery": true, "owner": null}
+- "show me the latest uploaded in last 1 week" → {"searchQuery": null, "sortBy": "newest", "timeFilter": {"startDate": "one_week_ago_date", "endDate": "${todayStr}"}, "docTypes": null, "limit": null, "isMetadataQuery": true, "owner": null}
+- "documents uploaded this week" → {"searchQuery": null, "sortBy": "newest", "timeFilter": {"startDate": "start_of_week_date", "endDate": "${todayStr}"}, "docTypes": null, "limit": null, "isMetadataQuery": true, "owner": null}
+- "files from last month" → {"searchQuery": null, "sortBy": "newest", "timeFilter": {"startDate": "one_month_ago_date", "endDate": "${todayStr}"}, "docTypes": null, "limit": null, "isMetadataQuery": true, "owner": null}
 - "John's documents" → {"searchQuery": "author:John OR owner:John OR by John OR created by John", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": "John"}
 - "docs by Sarah" → {"searchQuery": "author:Sarah OR owner:Sarah OR by Sarah OR created by Sarah", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": "Sarah"}
 - "latest report from Mike" → {"searchQuery": "author:Mike OR owner:Mike OR by Mike OR created by Mike", "sortBy": "newest", "timeFilter": null, "docTypes": null, "limit": 1, "isMetadataQuery": false, "owner": "Mike"}
 - "documents owned by David about sales" → {"searchQuery": "sales author:David owner:David by David", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": "David"}
+
+IMPORTANT: For time-based queries WITHOUT a content topic (like "latest uploaded in last week", "files from yesterday", "documents this month"), set isMetadataQuery: true.
+Only set isMetadataQuery: false when the user is asking about document CONTENT (like "documents about marketing", "what is our refund policy").
 
 When an owner/author is mentioned:
 - Extract the person's name into the "owner" field
 - Include variations like "author:Name", "owner:Name", "by Name", "created by Name" in the searchQuery to find documents where the person is mentioned
 - This allows semantic search to find documents that mention the person as author/owner in their content
 
-Calculate actual dates for relative terms like "last week", "yesterday", "this month".
+Calculate actual dates (YYYY-MM-DD format) for relative terms like "last week", "yesterday", "this month" based on current date ${todayStr}.
 Respond with ONLY the JSON, no markdown or explanation.`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
