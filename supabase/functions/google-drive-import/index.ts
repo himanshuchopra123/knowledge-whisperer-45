@@ -303,14 +303,14 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
         
         // Generate embedding using HuggingFace
         const embeddingResponse = await fetch(
-          "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
+          "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction",
           {
             method: "POST",
             headers: {
               Authorization: `Bearer ${HF_TOKEN}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ inputs: chunk }),
+            body: JSON.stringify({ inputs: [chunk] }),
           }
         );
 
@@ -319,7 +319,8 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
           continue;
         }
 
-        const embedding = await embeddingResponse.json();
+        const embeddingData = await embeddingResponse.json();
+        const embedding = Array.isArray(embeddingData) && embeddingData.length > 0 ? embeddingData[0] : embeddingData;
 
         // Store chunk with embedding
         const { error: chunkError } = await supabaseClient
