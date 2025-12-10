@@ -50,6 +50,14 @@ const Search = () => {
       const intent = await parseQueryIntent(searchQuery);
       console.log('Parsed intent:', intent);
       
+      // Show feedback if owner was detected
+      if (intent.owner) {
+        toast({
+          title: `Searching for ${intent.owner}'s documents`,
+          description: 'Looking for documents mentioning this person as author or owner',
+        });
+      }
+      
       if (intent.isMetadataQuery) {
         // Handle metadata queries (latest, oldest, etc.)
         setIsMetadataQuery(true);

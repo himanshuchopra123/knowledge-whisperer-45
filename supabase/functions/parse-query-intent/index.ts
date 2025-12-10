@@ -16,6 +16,7 @@ interface ParsedIntent {
   docTypes: string[] | null;
   limit: number | null;
   isMetadataQuery: boolean; // True for queries like "latest doc" that don't need semantic search
+  owner: string | null; // Extracted owner/author name from query
 }
 
 serve(async (req) => {
@@ -52,16 +53,26 @@ You must respond with ONLY valid JSON matching this structure:
   "timeFilter": { "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" } | null,
   "docTypes": ["pdf", "docx"] | null,
   "limit": number | null,
-  "isMetadataQuery": true if query is about document metadata (latest, oldest, count) rather than content
+  "isMetadataQuery": true if query is about document metadata (latest, oldest, count) rather than content,
+  "owner": "person's name if mentioned as document owner/author" | null
 }
 
 Examples:
-- "latest document" → {"searchQuery": null, "sortBy": "newest", "timeFilter": null, "docTypes": null, "limit": 1, "isMetadataQuery": true}
-- "show me the 5 newest PDFs" → {"searchQuery": null, "sortBy": "newest", "timeFilter": null, "docTypes": ["pdf"], "limit": 5, "isMetadataQuery": true}
-- "documents from last week about marketing" → {"searchQuery": "marketing", "sortBy": "relevance", "timeFilter": {"startDate": "calculated_date", "endDate": "${todayStr}"}, "docTypes": null, "limit": null, "isMetadataQuery": false}
-- "oldest files" → {"searchQuery": null, "sortBy": "oldest", "timeFilter": null, "docTypes": null, "limit": 10, "isMetadataQuery": true}
-- "what is our refund policy" → {"searchQuery": "refund policy", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false}
-- "files uploaded yesterday" → {"searchQuery": null, "sortBy": "newest", "timeFilter": {"startDate": "yesterday_date", "endDate": "yesterday_date"}, "docTypes": null, "limit": null, "isMetadataQuery": true}
+- "latest document" → {"searchQuery": null, "sortBy": "newest", "timeFilter": null, "docTypes": null, "limit": 1, "isMetadataQuery": true, "owner": null}
+- "show me the 5 newest PDFs" → {"searchQuery": null, "sortBy": "newest", "timeFilter": null, "docTypes": ["pdf"], "limit": 5, "isMetadataQuery": true, "owner": null}
+- "documents from last week about marketing" → {"searchQuery": "marketing", "sortBy": "relevance", "timeFilter": {"startDate": "calculated_date", "endDate": "${todayStr}"}, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": null}
+- "oldest files" → {"searchQuery": null, "sortBy": "oldest", "timeFilter": null, "docTypes": null, "limit": 10, "isMetadataQuery": true, "owner": null}
+- "what is our refund policy" → {"searchQuery": "refund policy", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": null}
+- "files uploaded yesterday" → {"searchQuery": null, "sortBy": "newest", "timeFilter": {"startDate": "yesterday_date", "endDate": "yesterday_date"}, "docTypes": null, "limit": null, "isMetadataQuery": true, "owner": null}
+- "John's documents" → {"searchQuery": "author:John OR owner:John OR by John OR created by John", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": "John"}
+- "docs by Sarah" → {"searchQuery": "author:Sarah OR owner:Sarah OR by Sarah OR created by Sarah", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": "Sarah"}
+- "latest report from Mike" → {"searchQuery": "author:Mike OR owner:Mike OR by Mike OR created by Mike", "sortBy": "newest", "timeFilter": null, "docTypes": null, "limit": 1, "isMetadataQuery": false, "owner": "Mike"}
+- "documents owned by David about sales" → {"searchQuery": "sales author:David owner:David by David", "sortBy": "relevance", "timeFilter": null, "docTypes": null, "limit": null, "isMetadataQuery": false, "owner": "David"}
+
+When an owner/author is mentioned:
+- Extract the person's name into the "owner" field
+- Include variations like "author:Name", "owner:Name", "by Name", "created by Name" in the searchQuery to find documents where the person is mentioned
+- This allows semantic search to find documents that mention the person as author/owner in their content
 
 Calculate actual dates for relative terms like "last week", "yesterday", "this month".
 Respond with ONLY the JSON, no markdown or explanation.`;
@@ -119,6 +130,7 @@ Respond with ONLY the JSON, no markdown or explanation.`;
         docTypes: null,
         limit: null,
         isMetadataQuery: false,
+        owner: null,
       };
     }
 

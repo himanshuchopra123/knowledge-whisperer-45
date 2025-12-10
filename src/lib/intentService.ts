@@ -10,6 +10,7 @@ export interface ParsedIntent {
   docTypes: string[] | null;
   limit: number | null;
   isMetadataQuery: boolean;
+  owner: string | null;
 }
 
 export const parseQueryIntent = async (query: string): Promise<ParsedIntent> => {
@@ -27,6 +28,7 @@ export const parseQueryIntent = async (query: string): Promise<ParsedIntent> => 
       docTypes: null,
       limit: null,
       isMetadataQuery: false,
+      owner: null,
     };
   }
 
