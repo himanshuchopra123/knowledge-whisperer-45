@@ -96,8 +96,9 @@ const Search = () => {
         // Build filters from intent and UI filters
         const filters: any = {};
         
+        // Source type filter (upload, google_drive, notion)
         if (sources.length > 0) {
-          filters.sources = sources;
+          filters.sourceTypes = sources;
         }
         
         // Use intent time filter or UI time filter
@@ -130,9 +131,9 @@ const Search = () => {
           filters.docTypes = intent.docTypes;
         } else if (docType !== 'all') {
           const typeMap: Record<DocTypeFilter, string[]> = {
-            prd: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-            roadmap: ['application/pdf', 'text/plain'],
-            discussion: ['text/plain', 'text/markdown'],
+            pdf: ['application/pdf'],
+            docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            text: ['text/plain', 'text/markdown'],
             all: [],
           };
           filters.docTypes = typeMap[docType];
@@ -174,8 +175,9 @@ const Search = () => {
       // Build same filters as search
       const filters: any = {};
       
+      // Source type filter
       if (sources.length > 0) {
-        filters.sources = sources;
+        filters.sourceTypes = sources;
       }
       
       if (timeFilter !== 'all') {
@@ -202,9 +204,9 @@ const Search = () => {
       
       if (docType !== 'all') {
         const typeMap: Record<DocTypeFilter, string[]> = {
-          prd: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-          roadmap: ['application/pdf', 'text/plain'],
-          discussion: ['text/plain', 'text/markdown'],
+          pdf: ['application/pdf'],
+          docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+          text: ['text/plain', 'text/markdown'],
           all: [],
         };
         

@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, MessageSquare, FolderOpen, Clock, X } from 'lucide-react';
+import { FileText, FolderOpen, Clock, X, Upload, Cloud } from 'lucide-react';
 
-export type SourceFilter = 'slack' | 'drive' | 'notion';
+export type SourceFilter = 'upload' | 'google_drive' | 'notion';
 export type TimeFilter = 'today' | 'week' | 'month' | 'all';
-export type DocTypeFilter = 'prd' | 'roadmap' | 'discussion' | 'all';
+export type DocTypeFilter = 'pdf' | 'docx' | 'text' | 'all';
 
 interface FilterPillsProps {
   sources: SourceFilter[];
@@ -47,22 +47,22 @@ export const FilterPills = ({
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Sources:</span>
         <Button
-          variant={sources.includes('slack') ? 'default' : 'outline'}
+          variant={sources.includes('upload') ? 'default' : 'outline'}
           size="sm"
-          onClick={() => toggleSource('slack')}
+          onClick={() => toggleSource('upload')}
           className="h-8 transition-all hover-scale"
         >
-          <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-          Slack
+          <Upload className="h-3.5 w-3.5 mr-1.5" />
+          Uploads
         </Button>
         <Button
-          variant={sources.includes('drive') ? 'default' : 'outline'}
+          variant={sources.includes('google_drive') ? 'default' : 'outline'}
           size="sm"
-          onClick={() => toggleSource('drive')}
+          onClick={() => toggleSource('google_drive')}
           className="h-8 transition-all hover-scale"
         >
-          <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
-          Drive
+          <Cloud className="h-3.5 w-3.5 mr-1.5" />
+          Google Drive
         </Button>
         <Button
           variant={sources.includes('notion') ? 'default' : 'outline'}
@@ -97,7 +97,7 @@ export const FilterPills = ({
 
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Type:</span>
-        {(['prd', 'roadmap', 'discussion', 'all'] as DocTypeFilter[]).map((type) => (
+        {(['pdf', 'docx', 'text', 'all'] as DocTypeFilter[]).map((type) => (
           <Button
             key={type}
             variant={docType === type ? 'default' : 'outline'}
@@ -105,7 +105,7 @@ export const FilterPills = ({
             onClick={() => onDocTypeChange(type)}
             className="h-8 transition-all hover-scale"
           >
-            {type === 'prd' ? 'PRDs' : type === 'roadmap' ? 'Roadmaps' : type === 'discussion' ? 'Discussions' : 'All'}
+            {type === 'pdf' ? 'PDF' : type === 'docx' ? 'Word' : type === 'text' ? 'Text' : 'All'}
           </Button>
         ))}
       </div>

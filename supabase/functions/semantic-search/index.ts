@@ -10,7 +10,7 @@ interface SearchParams {
   query: string;
   maxResults?: number;
   similarityThreshold?: number;
-  sources?: string[];
+  sourceTypes?: string[]; // 'upload', 'google_drive', 'notion'
   timeFilter?: {
     startDate?: string;
     endDate?: string;
@@ -48,7 +48,7 @@ serve(async (req) => {
       query,
       maxResults = 20,
       similarityThreshold = 0.7,
-      sources = [],
+      sourceTypes = [],
       timeFilter,
       docTypes = [],
     }: SearchParams = await req.json();
@@ -168,9 +168,12 @@ serve(async (req) => {
       const doc = documentsMap.get(chunk.document_id);
       if (!doc) return false;
 
-      // Source filter (document IDs)
-      if (sources.length > 0 && !sources.includes(chunk.document_id)) {
-        return false;
+      // Source type filter (upload, google_drive, notion)
+      if (sourceTypes.length > 0) {
+        const docSourceType = doc.source_type || 'upload'; // Default to 'upload' for legacy docs
+        if (!sourceTypes.includes(docSourceType)) {
+          return false;
+        }
       }
 
       // Time filter
