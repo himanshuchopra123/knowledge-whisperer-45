@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SearchFilters {
-  sources?: string[];
+  sourceTypes?: string[]; // 'upload', 'google_drive', 'notion'
   timeFilter?: {
     startDate?: string;
     endDate?: string;

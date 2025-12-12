@@ -170,9 +170,11 @@ async function importNotionPages(
           user_id: userId,
           title: pageTitle,
           file_name: `${pageTitle}.notion`,
-          file_type: "notion",
+          file_type: "text/plain", // Use standard MIME type for consistency
           file_size: pageContent.text.length,
           storage_path: null, // Notion pages don't use storage
+          source_id: pageId,
+          source_type: "notion", // Track the source for filtering
         })
         .select()
         .single();
