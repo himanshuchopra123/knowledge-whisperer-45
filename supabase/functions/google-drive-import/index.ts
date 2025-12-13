@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { getDocument } from "https://esm.sh/pdfjs-serverless@0.3.2";
+import mammoth from "https://esm.sh/mammoth@1.6.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -212,6 +214,54 @@ async function listGoogleDriveFiles(accessToken: string): Promise<any[]> {
   return files;
 }
 
+// Extract text from PDF using pdfjs-serverless
+async function extractPdfText(arrayBuffer: ArrayBuffer): Promise<string> {
+  try {
+    const uint8Array = new Uint8Array(arrayBuffer);
+    console.log("Loading PDF document, size:", uint8Array.length);
+    
+    const pdf = await getDocument(uint8Array).promise;
+    console.log("PDF loaded successfully, pages:", pdf.numPages);
+    
+    let fullText = "";
+    
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      
+      fullText += pageText + "\n\n";
+    }
+    
+    return sanitizeText(fullText);
+  } catch (error) {
+    console.error("Error extracting PDF text:", error);
+    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// Extract text from DOCX using mammoth
+async function extractDocxText(arrayBuffer: ArrayBuffer): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return sanitizeText(result.value);
+  } catch (error) {
+    console.error("Error extracting DOCX text:", error);
+    throw new Error(`Failed to extract text from DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// Sanitize text to remove problematic characters
+function sanitizeText(text: string): string {
+  return text
+    .replace(/\u0000/g, '') // Remove null bytes
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .trim();
+}
+
 async function importGoogleDriveFiles(fileIds: string[], accessToken: string, userId: string, supabaseClient: any): Promise<any[]> {
   const results = [];
   const HF_TOKEN = Deno.env.get("HUGGING_FACE_ACCESS_TOKEN");
@@ -262,10 +312,18 @@ async function importGoogleDriveFiles(fileIds: string[], accessToken: string, us
         if (downloadResponse.ok) {
           if (metadata.mimeType === "text/plain") {
             content = await downloadResponse.text();
-          } else {
-            // For PDFs and DOCX, we'd need specialized parsing
-            // For now, skip these as they need more complex handling
-            content = `[Binary content from ${metadata.name} - PDF/DOCX parsing requires document processing]`;
+          } else if (metadata.mimeType === "application/pdf") {
+            // Extract text from PDF
+            console.log(`Extracting text from PDF: ${metadata.name}`);
+            const arrayBuffer = await downloadResponse.arrayBuffer();
+            content = await extractPdfText(arrayBuffer);
+            console.log(`Extracted ${content.length} characters from PDF`);
+          } else if (metadata.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+            // Extract text from DOCX
+            console.log(`Extracting text from DOCX: ${metadata.name}`);
+            const arrayBuffer = await downloadResponse.arrayBuffer();
+            content = await extractDocxText(arrayBuffer);
+            console.log(`Extracted ${content.length} characters from DOCX`);
           }
         }
       }
