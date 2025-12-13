@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { question, filters = {}, maxResults = 5 } = await req.json();
+    const { question, filters = {}, maxResults = 5, results: providedResults = [] } = await req.json();
 
     if (!question) {
       throw new Error('Question is required');
@@ -22,53 +22,65 @@ serve(async (req) => {
     console.log('Question:', question);
     console.log('Filters:', JSON.stringify(filters));
     console.log('Max results:', maxResults);
+    console.log('Provided results count:', Array.isArray(providedResults) ? providedResults.length : 0);
 
-    // Get auth credentials for calling semantic-search
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
-    // Use case-insensitive header access (HTTP headers are case-insensitive)
-    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
-    
-    console.log('Auth header present:', !!authHeader);
-    console.log('Auth header value (first 20 chars):', authHeader?.substring(0, 20) + '...');
+    let searchData: any = null;
 
-    // Call semantic search with direct fetch to ensure auth is passed correctly
-    console.log('Calling semantic-search with URL:', `${supabaseUrl}/functions/v1/semantic-search`);
-    const searchResponse = await fetch(`${supabaseUrl}/functions/v1/semantic-search`, {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader || '',
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey,
-      },
-      body: JSON.stringify({
-        query: question,
-        maxResults,
-        similarityThreshold: 0.15,
-        ...filters,
-      }),
-    });
+    // If the client already has semantic search results, reuse them instead of calling semantic-search again
+    if (Array.isArray(providedResults) && providedResults.length > 0) {
+      console.log('Using provided search results from client. Count:', providedResults.length);
+      searchData = { results: providedResults };
+    } else {
+      console.log('No provided results, calling semantic-search function');
 
-    console.log('Search response status:', searchResponse.status);
-
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error('Search response error:', searchResponse.status, errorText);
-      throw new Error(`Failed to retrieve context: ${searchResponse.status}`);
+      // Get auth credentials for calling semantic-search
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      
+      // Use case-insensitive header access (HTTP headers are case-insensitive)
+      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+      
+      console.log('Auth header present:', !!authHeader);
+      console.log('Auth header value (first 20 chars):', authHeader?.substring(0, 20) + '...');
+  
+      // Call semantic search with direct fetch to ensure auth is passed correctly
+      console.log('Calling semantic-search with URL:', `${supabaseUrl}/functions/v1/semantic-search`);
+      const searchResponse = await fetch(`${supabaseUrl}/functions/v1/semantic-search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader || '',
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({
+          query: question,
+          maxResults,
+          similarityThreshold: 0.15,
+          ...filters,
+        }),
+      });
+  
+      console.log('Search response status:', searchResponse.status);
+  
+      if (!searchResponse.ok) {
+        const errorText = await searchResponse.text();
+        console.error('Search response error:', searchResponse.status, errorText);
+        throw new Error(`Failed to retrieve context: ${searchResponse.status}`);
+      }
+  
+      searchData = await searchResponse.json();
+      console.log('Search data received:', JSON.stringify({
+        hasResults: !!searchData?.results,
+        resultsCount: searchData?.results?.length || 0,
+        error: searchData?.error
+      }));
+      
+      if (searchData.error) {
+        console.error('Search error:', searchData.error);
+        throw new Error(`Failed to retrieve context: ${searchData.error}`);
+      }
     }
 
-    const searchData = await searchResponse.json();
-    console.log('Search data received:', JSON.stringify({
-      hasResults: !!searchData?.results,
-      resultsCount: searchData?.results?.length || 0,
-      error: searchData?.error
-    }));
-    
-    if (searchData.error) {
-      console.error('Search error:', searchData.error);
-      throw new Error(`Failed to retrieve context: ${searchData.error}`);
-    }
 
     if (!searchData || !searchData.results || searchData.results.length === 0) {
       console.log('No search results found - returning no-info response');

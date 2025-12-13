@@ -226,9 +226,9 @@ const Search = () => {
 
       // Use the semantic search query from intent for better retrieval
       const effectiveQuestion = intent.searchQuery || searchQuery;
-      console.log('Generating answer with question:', effectiveQuestion, 'and filters:', filters);
+      console.log('Generating answer with question:', effectiveQuestion, 'and filters:', filters, 'using', searchResults.length, 'search results for context');
 
-      const answerResponse = await generateAnswer(effectiveQuestion, filters, intent.limit || 5);
+      const answerResponse = await generateAnswer(effectiveQuestion, filters, intent.limit || 5, searchResults);
       setAnswer(answerResponse);
       
       toast({
