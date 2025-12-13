@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { SearchFilters } from './searchService';
+import type { SearchFilters, SearchResult } from './searchService';
 
 export interface AnswerSource {
   sourceNumber: number;
@@ -19,13 +19,15 @@ export interface AnswerResponse {
 export const generateAnswer = async (
   question: string,
   filters: SearchFilters = {},
-  maxResults: number = 5
+  maxResults: number = 5,
+  results?: SearchResult[],
 ): Promise<AnswerResponse> => {
   const { data, error } = await supabase.functions.invoke('generate-answer', {
     body: {
       question,
       filters,
       maxResults,
+      ...(results && results.length > 0 ? { results } : {}),
     },
   });
 
