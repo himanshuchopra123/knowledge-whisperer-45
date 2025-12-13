@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Search from "./pages/Search";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
+import Presentation from "./pages/Presentation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/presentation" element={<Presentation />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
