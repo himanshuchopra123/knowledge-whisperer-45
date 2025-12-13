@@ -172,7 +172,12 @@ const Search = () => {
 
     setIsGeneratingAnswer(true);
     try {
-      // Build same filters as search
+      // First, parse the query intent so we use the same semantic query as search
+      console.log('Parsing query intent for answer:', searchQuery);
+      const intent = await parseQueryIntent(searchQuery);
+      console.log('Parsed intent for answer:', JSON.stringify(intent, null, 2));
+
+      // Build filters similar to search, but also respect intent time/doc filters
       const filters: any = {};
       
       // Source type filter
@@ -180,7 +185,10 @@ const Search = () => {
         filters.sourceTypes = sources;
       }
       
-      if (timeFilter !== 'all') {
+      // Time filter: prefer intent timeFilter, otherwise use UI timeFilter
+      if (intent.timeFilter) {
+        filters.timeFilter = intent.timeFilter;
+      } else if (timeFilter !== 'all') {
         const now = new Date();
         const startDate = new Date();
         
@@ -202,7 +210,10 @@ const Search = () => {
         };
       }
       
-      if (docType !== 'all') {
+      // Doc type filter: prefer intent docTypes, otherwise use UI docType
+      if (intent.docTypes && intent.docTypes.length > 0) {
+        filters.docTypes = intent.docTypes;
+      } else if (docType !== 'all') {
         const typeMap: Record<DocTypeFilter, string[]> = {
           pdf: ['application/pdf'],
           docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -213,7 +224,11 @@ const Search = () => {
         filters.docTypes = typeMap[docType];
       }
 
-      const answerResponse = await generateAnswer(searchQuery, filters, 5);
+      // Use the semantic search query from intent for better retrieval
+      const effectiveQuestion = intent.searchQuery || searchQuery;
+      console.log('Generating answer with question:', effectiveQuestion, 'and filters:', filters);
+
+      const answerResponse = await generateAnswer(effectiveQuestion, filters, intent.limit || 5);
       setAnswer(answerResponse);
       
       toast({
