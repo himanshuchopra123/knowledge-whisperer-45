@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,32 +20,41 @@ serve(async (req) => {
 
     console.log('Generating answer for question:', question);
 
-    // Initialize Supabase client for calling semantic-search with user auth
+    // Get auth credentials for calling semantic-search
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const authHeader = req.headers.get('Authorization');
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: {
-          Authorization: authHeader || '',
-        },
-      },
-    });
+    
+    console.log('Auth header present:', !!authHeader);
 
-    // Call semantic search to get relevant context
+    // Call semantic search with direct fetch to ensure auth is passed correctly
     console.log('Calling semantic-search...');
-    const { data: searchData, error: searchError } = await supabase.functions.invoke('semantic-search', {
-      body: {
+    const searchResponse = await fetch(`${supabaseUrl}/functions/v1/semantic-search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader || '',
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+      },
+      body: JSON.stringify({
         query: question,
         maxResults,
         similarityThreshold: 0.15,
         ...filters,
-      },
+      }),
     });
 
-    if (searchError) {
-      console.error('Search error:', searchError);
-      throw new Error(`Failed to retrieve context: ${searchError.message}`);
+    if (!searchResponse.ok) {
+      const errorText = await searchResponse.text();
+      console.error('Search response error:', searchResponse.status, errorText);
+      throw new Error(`Failed to retrieve context: ${searchResponse.status}`);
+    }
+
+    const searchData = await searchResponse.json();
+    
+    if (searchData.error) {
+      console.error('Search error:', searchData.error);
+      throw new Error(`Failed to retrieve context: ${searchData.error}`);
     }
 
     if (!searchData || !searchData.results || searchData.results.length === 0) {
